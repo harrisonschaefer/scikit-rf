@@ -270,7 +270,7 @@ class Mdif:
             for m in range(rank):
                 for n in range(rank):
                     y[:,m,n] = values[:, kinds.index(f'y[{m+1},{n+1}]') - 1]
-            s = y2s(z, z0=z0)
+            s = y2s(y, z0=z0)
 
         else:
             raise NotImplementedError('Unrecognized case, probably not implemented')
