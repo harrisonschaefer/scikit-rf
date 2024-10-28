@@ -20,6 +20,10 @@ if TYPE_CHECKING:
     from .network import Network
 
 
+logger = logging.getLogger(__name__)
+
+B_FLIP_UNSTABLE = False
+
 class VectorFitting:
     """
     This class provides a Python implementation of the Vector Fitting algorithm and various functions for the fit
@@ -137,7 +141,7 @@ class VectorFitting:
         omega_eval = np.linspace(np.min(poles.imag) / 3, np.max(poles.imag) * 3, n_freqs)
         h = (residues[:, None, :] / (1j * omega_eval[:, None] - poles)
              + np.conj(residues[:, None, :]) / (1j * omega_eval[:, None] - np.conj(poles)))
-        norm2 = np.sqrt(np.trapz(h.real ** 2 + h.imag ** 2, omega_eval, axis=1))
+        norm2 = np.sqrt(np.trapezoid(h.real ** 2 + h.imag ** 2, omega_eval, axis=1))
         spurious = np.all(norm2 / np.mean(norm2) < gamma, axis=0)
         return spurious
 
@@ -232,7 +236,7 @@ class VectorFitting:
         initial_poles = poles * norm
         max_singular = 1
 
-        logging.info('### Starting pole relocation process.\n')
+        logger.info('### Starting pole relocation process.\n')
 
         # select network representation type
         if parameter_type.lower() == 's':
@@ -273,32 +277,32 @@ class VectorFitting:
 
         # POLE RELOCATION LOOP
         while iterations > 0:
-            logging.info(f'Iteration {self.max_iterations - iterations + 1}')
+            logger.info(f'Iteration {self.max_iterations - iterations + 1}')
 
             poles, d_res, cond, rank_deficiency, residuals, singular_vals = self._pole_relocation(
                 poles, freqs_norm, freq_responses, weights_responses, fit_constant, fit_proportional)
 
-            logging.info(f'Condition number of coefficient matrix is {int(cond)}')
+            logger.info(f'Condition number of coefficient matrix is {int(cond)}')
             self.history_cond_A.append(cond)
 
             self.history_rank_deficiency.append(rank_deficiency)
-            logging.info(f'Rank deficiency is {rank_deficiency}.')
+            logger.info(f'Rank deficiency is {rank_deficiency}.')
 
             self.d_res_history.append(d_res)
-            logging.info(f'd_res = {d_res}')
+            logger.info(f'd_res = {d_res}')
 
             # calculate relative changes in the singular values; stop iteration loop once poles have converged
             new_max_singular = np.amax(singular_vals)
             delta_max = np.abs(1 - new_max_singular / max_singular)
             self.delta_max_history.append(delta_max)
-            logging.info(f'Max. relative change in residues = {delta_max}\n')
+            logger.info(f'Max. relative change in residues = {delta_max}\n')
             max_singular = new_max_singular
 
             stop = False
             if delta_max < self.max_tol:
                 if converged:
                     # is really converged, finish
-                    logging.info(f'Pole relocation process converged after {self.max_iterations - iterations + 1} '
+                    logger.info(f'Pole relocation process converged after {self.max_iterations - iterations + 1} '
                                   'iterations.')
                     stop = True
                 else:
@@ -340,13 +344,13 @@ class VectorFitting:
                 iterations = 0
 
         # ITERATIONS DONE
-        logging.info('Initial poles before relocation:')
-        logging.info(initial_poles)
+        logger.info('Initial poles before relocation:')
+        logger.info(initial_poles)
 
-        logging.info('Final poles:')
-        logging.info(poles * norm)
+        logger.info('Final poles:')
+        logger.info(poles * norm)
 
-        logging.info('\n### Starting residues calculation process.\n')
+        logger.info('\n### Starting residues calculation process.\n')
 
         # finally, solve for the residues with the previously calculated poles
         residues, constant_coeff, proportional_coeff, residuals, rank, singular_vals = self._fit_residues(
@@ -361,7 +365,7 @@ class VectorFitting:
         timer_stop = timer()
         self.wall_clock_time = timer_stop - timer_start
 
-        logging.info(f'\n### Vector fitting finished in {self.wall_clock_time} seconds.\n')
+        logger.info(f'\n### Vector fitting finished in {self.wall_clock_time} seconds.\n')
 
         # raise a warning if the fitted Network is passive but the fit is not (only without proportional_coeff):
         if self.network.is_passive() and not fit_proportional:
@@ -467,7 +471,7 @@ class VectorFitting:
         # get initial poles
         poles = self._init_poles(freqs_norm, n_poles_init_real, n_poles_init_cmplx, 'lin')
 
-        logging.info('### Starting pole relocation process.\n')
+        logger.info('### Starting pole relocation process.\n')
 
         # select network representation type
         if parameter_type.lower() == 's':
@@ -512,16 +516,16 @@ class VectorFitting:
 
             self.d_res_history.append(d_res)
 
-            logging.info(f'Condition number of coefficient matrix is {int(cond)}')
+            logger.info(f'Condition number of coefficient matrix is {int(cond)}')
             self.history_cond_A.append(cond)
 
             self.history_rank_deficiency.append(rank_deficiency)
-            logging.info(f'Rank deficiency is {rank_deficiency}.')
+            logger.info(f'Rank deficiency is {rank_deficiency}.')
 
             new_max_singular = np.amax(singular_vals)
             delta_max = np.abs(1 - new_max_singular / max_singular)
             self.delta_max_history.append(delta_max)
-            logging.info(f'Max. relative change in residues = {delta_max}\n')
+            logger.info(f'Max. relative change in residues = {delta_max}\n')
             max_singular = new_max_singular
 
         # RESIDUE FITTING FOR ERROR COMPUTATION
@@ -592,16 +596,16 @@ class VectorFitting:
 
                 self.d_res_history.append(d_res)
 
-                logging.info(f'Condition number of coefficient matrix is {int(cond)}')
+                logger.info(f'Condition number of coefficient matrix is {int(cond)}')
                 self.history_cond_A.append(cond)
 
                 self.history_rank_deficiency.append(rank_deficiency)
-                logging.info(f'Rank deficiency is {rank_deficiency}.')
+                logger.info(f'Rank deficiency is {rank_deficiency}.')
 
                 new_max_singular = np.amax(singular_vals)
                 delta_max = np.abs(1 - new_max_singular / max_singular)
                 self.delta_max_history.append(delta_max)
-                logging.info(f'Max. relative change in residues = {delta_max}\n')
+                logger.info(f'Max. relative change in residues = {delta_max}\n')
                 max_singular = new_max_singular
 
             # RESIDUE FITTING FOR ERROR COMPUTATION
@@ -631,16 +635,16 @@ class VectorFitting:
 
             self.d_res_history.append(d_res)
 
-            logging.info(f'Condition number of coefficient matrix is {int(cond)}')
+            logger.info(f'Condition number of coefficient matrix is {int(cond)}')
             self.history_cond_A.append(cond)
 
             self.history_rank_deficiency.append(rank_deficiency)
-            logging.info(f'Rank deficiency is {rank_deficiency}.')
+            logger.info(f'Rank deficiency is {rank_deficiency}.')
 
             new_max_singular = np.amax(singular_vals)
             delta_max = np.abs(1 - new_max_singular / max_singular)
             self.delta_max_history.append(delta_max)
-            logging.info(f'Max. relative change in residues = {delta_max}\n')
+            logger.info(f'Max. relative change in residues = {delta_max}\n')
             max_singular = new_max_singular
 
         # FINAL RESIDUE FITTING
@@ -860,7 +864,7 @@ class VectorFitting:
         tol_res = 1e-8
         if np.abs(d_res) < tol_res:
             # d_res is too small, discard solution and proceed the |d_res| = tol_res
-            logging.info(f'Replacing d_res solution as it was too small ({d_res}).')
+            logger.info(f'Replacing d_res solution as it was too small ({d_res}).')
             d_res = tol_res * (d_res / np.abs(d_res))
 
         # build test matrix H, which will hold the new poles as eigenvalues
@@ -885,7 +889,8 @@ class VectorFitting:
         poles = poles_new[np.nonzero(poles_new.imag >= 0)]
 
         # flip real part of unstable poles (real part needs to be negative for stability)
-        poles.real = -1 * np.abs(poles.real)
+        if B_FLIP_UNSTABLE:
+            poles.real = -1 * np.abs(poles.real)
 
         return poles, d_res, cond, rank_deficiency, residuals, singular_vals
 
@@ -958,7 +963,7 @@ class VectorFitting:
         A[:, idx_constant] = 1
         A[:, idx_proportional] = s[:, None]
 
-        logging.info(f'Condition number of coefficient matrix = {int(np.linalg.cond(A))}')
+        logger.info(f'Condition number of coefficient matrix = {int(np.linalg.cond(A))}')
 
         # solve least squares and obtain results as stack of real part vector and imaginary part vector
         x, residuals, rank, singular_vals = np.linalg.lstsq(np.vstack((A.real, A.imag)),
@@ -1315,7 +1320,7 @@ class VectorFitting:
         # if not np.allclose(self.residues, np.transpose(self.residues)) or \
         #         not np.allclose(self.constant_coeff, np.transpose(self.constant_coeff)) or \
         #         not np.allclose(self.proportional_coeff, np.transpose(self.proportional_coeff)):
-        #     logging.error('Passivity testing with unsymmetrical model parameters is not supported. '
+        #     logger.error('Passivity testing with unsymmetrical model parameters is not supported. '
         #                   'The model needs to be reciprocal.')
         #     return
 
@@ -1483,7 +1488,7 @@ class VectorFitting:
         # always run passivity test first; this will write 'self.violation_bands'
         if self.is_passive():
             # model is already passive; do nothing and return
-            logging.info('Passivity enforcement: The model is already passive. Nothing to do.')
+            logger.info('Passivity enforcement: The model is already passive. Nothing to do.')
             return
 
         # find the highest relevant frequency; either
@@ -1553,7 +1558,7 @@ class VectorFitting:
         t = 0
         self.history_max_sigma = []
         while t < self.max_iterations:
-            logging.info(f'Passivity enforcement; Iteration {t + 1}')
+            logger.info(f'Passivity enforcement; Iteration {t + 1}')
 
             # calculate S-matrix at this frequency (shape fxNxN)
             if D_t is not None:
@@ -1702,7 +1707,7 @@ class VectorFitting:
 
         filename = self.network.name
 
-        logging.info(f'Exporting results as compressed NumPy array to {path}')
+        logger.info(f'Exporting results as compressed NumPy array to {path}')
         np.savez_compressed(os.path.join(path, f'coefficients_{filename}'),
                             poles=self.poles, residues=self.residues, proportionals=self.proportional_coeff,
                             constants=self.constant_coeff)
@@ -2349,7 +2354,7 @@ class VectorFitting:
                     # add CCCS to generate the scattered current I_nj at port n
                     # control current is measured by the dummy voltage source at the transfer network Y_nj
                     # the scattered current is injected into the port (source positive connected to ground)
-                    f.write(f'F{n + 1}{j + 1} 0 a{n + 1} V{n + 1}{j + 1}'
+                    f.write(f'F{n + 1}{j + 1} 0 a{n + 1} V{n + 1}{j + 1} '
                             f'{formatter(1 / np.real(self.network.z0[0, n]))}\n')
                     f.write(f'F{n + 1}{j + 1}_inv a{n + 1} 0 V{n + 1}{j + 1}_inv '
                             f'{formatter(1 / np.real(self.network.z0[0, n]))}\n')
